@@ -63,7 +63,7 @@
 		    }
 
 		    //draws a circle
-			function createCircle(cx, cy, r, id, color){
+			function createCircle(cx, cy, r, id, color, course){
 				var playground=d3.select("#playground");
 				playground.append("svg:circle").
 					attr("cx", cx).
@@ -76,7 +76,7 @@
 					attr("y", cy).
 					attr("id", "text"+id).
 					attr("style", "font-size:20px; color:#000000;").
-					text(id);
+					text(id+"course:"+course+"next_course:");
 				//attach event listeners to target
 				$('#'+id).click(function(){
 					console.log('deleting', this.id);
@@ -109,7 +109,7 @@
 
 			//generate targets
 			function generateTargets(difficulty_level){
-				var counter_ceiling=12;
+				var counter_ceiling=6;
 				while(counter<=counter_ceiling){				
 					if(difficulty_level==1){var r=30;speed=200;}
 						else if(difficulty_level==2){var r=22;speed=300;}
@@ -123,7 +123,7 @@
 					var id='target_'+counter;
 					var course=Math.floor(Math.random()*360);
 					targets[id]={cx:cx, cy:cy, r:r, id:id, class:'target', color:color, course:course, speed:speed};
-					createCircle(cx, cy, r, id, color);
+					createCircle(cx, cy, r, id, color, course);
 					generateDestination(targets[id]);
 					moveTarget(targets[id]);
 					counter++;					
@@ -134,7 +134,7 @@
 				var d=new Date;
 				var start_time=d.getTime();
 				var distance=Math.floor(Math.sqrt(Math.pow(target.next_cx-target.cx, 2)+Math.pow(target.next_cy-target.cy, 2)));
-				d3.select("#text"+target.id).transition().duration(Math.floor(distance*3000/target.speed)).attr("x", target.next_cx).attr("y", target.next_cy);
+				d3.select("#text"+target.id).transition().duration(Math.floor(distance*3000/target.speed)).attr("x", target.next_cx).attr("y", target.next_cy).text(target.id+" course:"+target.course+" next_course:"+target.next_course);
 				d3.select("#"+target.id).transition().duration(Math.floor(distance*3000/target.speed)).attr("cx", target.next_cx).attr("cy", target.next_cy)
 				.each("end", function(){updateTargets(target);generateDestination(target);var d=new Date; var timestamp=d.getTime();console.log(target.id, 'distance:',distance, 'targets moving time', Math.floor(distance*3000/target.speed), 'timestamp difference-moving time:', timestamp-start_time-Math.floor(distance*3000/target.speed));moveTarget(target)});
 			}
@@ -247,7 +247,7 @@
 						target.next_course=90;
 						break;
 				}
-				// console.log('from', target.cx, target.cy, 'at bearing', target.course, 'results in', target.next_cx, target.next_cy, 'with bearing',target.next_course);
+				// console.log(target.id, 'from', target.cx, target.cy, 'at bearing', target.course, 'results in', target.next_cx, target.next_cy, 'with bearing',target.next_course);
 			}
 
 			function updateTargets(target){
