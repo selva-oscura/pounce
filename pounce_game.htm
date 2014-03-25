@@ -1,0 +1,298 @@
+<html>
+	<head>
+		<title>Pounce</title>
+		<style type="text/css">
+			body {background-color:white;height:100%;overflow:hidden;margin:0px; padding:0px;}
+			#header{height:48px; background:silver;border:1px solid gray;}
+			#header p{margin:14px 6px 10px 8px;}
+			svg { vertical-align: top; }
+			#playground{margin-top:0px; padding-top: 0px;}
+			.left{float:left;}
+			.right{float:right;}
+			.text_left p{text-align: left;}
+			.text_right p{text-align: right;}
+			.header_subdiv{margin-left:24px;}
+			.score_space{width:80px;}
+			#time{width:100px;}
+		</style>
+		<script type="text/javascript" src="js/jquery-latest.min.js"></script>
+		<script src="http://d3js.org/d3.v3.min.js" charset="utf-8"></script>
+	</head>
+	<body>
+		<div id='header'>
+			<div id='difficulty_level' class='left'>
+				<form>
+					<p>Difficulty Level: 
+						<label for="easy">
+							<input type="radio" id="easy" name="difficulty_level" value="1"/>
+							Easy
+						</label>
+						<label for="medium">
+							<input type="radio" id="medium" name="difficulty_level" value="2" />
+							Medium
+						</label>
+						<label for="hard">
+							<input type="radio" id="hard" name="difficulty_level" value="3"/>
+							Hard
+						</label>
+					</p>
+				</form>
+			</div><!--end of div difficulty_level-->
+ 			<div class='header_subdiv right'>
+				<div class='left text_left'><p> Your High Score: </p></div>
+				<div class='right text_right'><p><span id='high_score' class='score_space'>0 points</span></p></div>
+			</div>
+ 			<div class='header_subdiv right'>
+				<div class='left text_left'><p> Score: </p></div>
+				<div class='right text_right'><p><span id='score' class='score_space'>0 points</span></p></div>
+			</div>
+				<!--end of div header_subdiv--> 
+			<div class='header_subdiv right'>
+				<div class='left text_left'><p> Elapsed Time: </p></div>
+				<div class='right text_right'><p><span id='time'>0 seconds</span></p></div>
+			</div><!--end of div header_subdiv-->
+		</div><!--end of div header-->
+		<svg id="playground" xmlns="http://www.w3.org/2000/svg"></svg>
+		<script type="text/javascript">
+			var obj= document.createElement('select');
+			obj.style.width= "80px";
+
+			var browserDimensions={};
+			browserDimensions['x']=document.body.clientWidth;
+			browserDimensions['y']=document.body.clientHeight-50;
+			console.log(browserDimensions['x'], browserDimensions['y']);
+		    var counter=1;
+		    var targets={};					//target object
+		    var difficulty_level=0;			//variables cor calculating scoring/points
+		    var max_points=0;
+		    var score=0;
+		    var high_score=0;
+		    var animate;
+		    var d;                        	//variables for timed events (d, check_seconds, newest_delete_time, last_delete_time)
+		    var check_seconds;
+		    var newest_delete_time;
+		    var last_delete_time;
+
+			//create svg element
+			function makeSVG(tag, attrs) {
+		        var el= document.createElementNS('http://www.w3.org/2000/svg', tag);
+		        for (var k in attrs)
+		        {
+		            el.setAttribute(k, attrs[k]);
+		        }
+		        return el;
+		    }
+
+		    //draws a circle
+			function drawCircle(cx, cy, r, id, color){
+				var playground=d3.select("#playground");
+				playground.append("svg:circle").
+					attr("cx", cx).
+					attr("cy", cy).
+					attr("r", r).
+					attr("id", id).
+					attr("style", "fill: hsla("+color+", 100%, 50%, .8); stroke-width:1; stroke: hsla(0,0%,0%,.5)");
+				//attach event listeners to target
+				$('#'+id).click(function(){
+					deleteTarget(this);
+				});
+			}
+
+			function deleteTarget(this_target){
+				//calculating score points for deleting target
+				var d=new Date();
+				newest_delete_time=d.getTime();
+				if(targets[this_target.id].difficulty_level==1){
+					max_points=10;
+				}
+				else if(targets[this_target.id].difficulty_level==2){
+					max_points=12;
+				}
+				else{
+					max_points=15;
+				}
+				this_points=max_points-Math.floor((newest_delete_time-last_delete_time)/500);
+				if(this_points<1){this_points=1;}
+				score+=this_points;
+				//update score on the board
+				if(score==1){document.getElementById('score').innerHTML=score+' point';}
+					else{document.getElementById('score').innerHTML=score+' points';}
+
+				//delete image of circle
+				d3.select("#"+this_target.id).remove();
+				// delete target from the target object
+				delete targets[this_target.id];
+				var targets_counted=0;
+				for(target in targets){
+					targets_counted++;
+				}
+				//when all targets are clicked, stop the clock and update the high score (if warranted)
+				if(targets_counted==0){
+					clearInterval(check_seconds);
+					if(score>high_score){high_score=score;document.getElementById('high_score').innerHTML=high_score+' points';}
+				}
+				last_delete_time=newest_delete_time;
+			}
+
+			//reset the game
+			function resetGame(){
+				//deleting the targets
+				for(target in targets){
+					//delete image of circle
+					d3.select("#"+targets[target].id).remove();
+					//delete target info from targets object
+					delete targets[target];
+				}
+				//resetting the counter (number of targets generated), the time clock, and the points for the game
+				counter=1;
+				score=0;
+				document.getElementById("time").innerHTML="0 seconds";
+				document.getElementById('score').innerHTML=score+" points";
+			}
+
+			//generate targets
+			function generateTargets(difficulty_level){
+				//set the start_time for the game to calculate time to deletion of targets
+				var d=new Date();
+				var start_time=d.getTime();
+				last_delete_time=start_time;
+				//set total number of targets
+				var counter_ceiling=12;
+				while(counter<=counter_ceiling){				
+					//set size (r) and distance travelled per iteration (range) of targets
+					if(difficulty_level==1){var r=36;range=6;}
+						else if(difficulty_level==2){var r=30;range=8;}
+						else{var r=24;range=12;};
+					//set colours for targetes
+					var color=(counter-1)*(360/counter_ceiling);
+					//alternative ways to set colours  <-- decided to go with the previous way
+						// if(counter%6==0){var color="red";}
+						// 	else if(counter%6==1){var color="yellow";}
+						// 	else if(counter%6==2){var color="blue";}
+						// 	else if(counter%6==3){var color="green";}
+						// 	else if(counter%6==4){var color="orange";}
+						// 	else{var color="purple";}
+						// if(counter%6==0){var color="255,0,0";}
+						// 	else if(counter%6==1){var color="0,255,0";}
+						// 	else if(counter%6==2){var color="0,0,255";}
+						// 	else if(counter%6==3){var color="255,255,0";}
+						// 	else if(counter%6==4){var color="0,255,255";}
+						// 	else{var color="255,0,255";}
+					//set locations for targets
+					var cx=Math.floor(Math.random()*(browserDimensions['x']-2*r)+r);
+					var cy=Math.floor(Math.random()*(browserDimensions['y']-2*r)+r);
+					//set course of targets (a function that uses the range to set total distance per turn)
+					var x=Math.floor(Math.random()*range*(Math.pow(-1,Math.floor(Math.random()*2+1))));
+					var y=(range-Math.abs(x))*(Math.pow(-1, Math.floor(Math.random()*2+1)));
+					var course={
+						x:x,
+						y:y
+					};
+					var id="target_"+counter;
+					targets[id]={cx:cx, cy:cy, r:r, id:id, class:'target', difficulty_level:difficulty_level, color:color, course:course};
+					drawCircle(cx, cy, r, id, color);
+					counter++;
+				}
+				//clear out setIntervals from previous rounds
+				clearInterval(animate);
+				clearInterval(check_seconds);
+				//start the setIntervals for the circle animations and the time clock
+				animateCircles();
+				runTimer(start_time);
+			}
+
+			function animateCircles(){
+				//set frequency of redrawing of circles
+				var speed=60;
+				//setInterval function for animating the circles
+				animate=setInterval(function(){moveTargets(targets, speed)}, speed);
+			}
+
+			function runTimer(start_time)
+			{
+				// get time and calculate total elapsed time since beginning of game
+				check_seconds=setInterval(function(){
+					var d=new Date; 
+					current_time=d.getTime(); 
+					elapsed_time=Math.floor((current_time-start_time)/1000); 
+					if(elapsed_time==1){
+						document.getElementById("time").innerHTML=elapsed_time+" second"
+					}
+					else{
+						document.getElementById("time").innerHTML=elapsed_time+" seconds"
+					}
+				}, 1000);
+			}
+
+			function moveTargets(targets, speed){
+				for(target in targets){
+					//check circle location and dimensions and verify wall locations in order to check if the target is hitting a wall
+					var min_y=0+targets[target].r;
+					var min_x=0+targets[target].r;
+					browserDimensions['x']=document.body.clientWidth;
+					browserDimensions['y']=document.body.clientHeight-50;
+					var max_x=browserDimensions['x']-targets[target].r;
+					var max_y=browserDimensions['y']-targets[target].r;
+					//change x trajectory and location if the target hits the left or right wall
+					if(targets[target].cx+targets[target].course.x<=min_x){			//for the left wall
+						targets[target].cx=min_x;
+						targets[target].course.x=-targets[target].course.x;
+					}
+					else if(targets[target].cx+targets[target].course.x>=max_x){	//for the right wall
+						targets[target].cx=max_x;
+						targets[target].course.x=-targets[target].course.x;
+
+					}
+					//update x location if not hitting a left or right wall
+					else{
+						targets[target].cx=targets[target].cx+targets[target].course.x;  
+					}
+					//change y trajectory and location if the target hits the top or bottom wall
+					if(targets[target].cy+targets[target].course.y<=min_y){			//for the top wall
+						targets[target].cy=min_y;
+						targets[target].course.y=-targets[target].course.y;
+					}
+					else if(targets[target].cy+targets[target].course.y>=max_y){	//for the bottom wall
+						targets[target].cy=max_y;
+						targets[target].course.y=-targets[target].course.y;
+					}
+					//update y location if didn't hit top or bottom wall
+					else{
+						targets[target].cy=targets[target].cy+targets[target].course.y;
+					}
+					//updated location of target's center (cx, cy) sent to d3 for animation over duration speed
+					d3.select("#"+targets[target].id).transition().duration(speed).attr("cx", targets[target].cx).attr("cy", targets[target].cy);
+				}
+			}
+
+
+			//set svg element playground's height
+			var sandbox=document.getElementById("playground");
+			$(sandbox).css("height", browserDimensions['y']);
+
+			//set difficulty level
+			$(document).ready(function() {
+				$('#easy').click(function(){
+					resetGame();
+					var difficulty_level=1;
+					generateTargets(difficulty_level);
+				});
+				$('#medium').click(function(){
+					resetGame();
+					var difficulty_level=2;
+					generateTargets(difficulty_level);
+				});
+				$('#hard').click(function(){
+					resetGame();
+					var difficulty_level=3;
+					generateTargets(difficulty_level);
+				});
+			});
+
+			//checking location of clicks vis-a-vis target centers as part of the deveoopment process
+				// document.onclick = function(e){
+				// 	console.log('clicked on', e.x, e.y);
+				// }
+		</script>
+	</body>
+</html>
