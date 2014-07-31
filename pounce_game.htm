@@ -65,7 +65,6 @@
 			browserDimensions['y']=window.innerHeight;
 
 			console.log(browserDimensions['x'], browserDimensions['y']);
-		    var counter=1;
 		    var targets={};					//target object
 		    var difficulty_level=0;			//variables cor calculating scoring/points
 		    var max_points=0;
@@ -161,9 +160,11 @@
 				var start_time=d.getTime();
 				last_delete_time=start_time;
 				//set total number of targets
-				var counter_ceiling=4;
+				var counter=1;
+				var counter_ceiling=12;
 				while(counter<=counter_ceiling){				
 					//set size (r) and distance travelled per iteration (range) of targets
+					var should_save=true;
 					if(difficulty_level==1){var r=60;range=6;}
 						else if(difficulty_level==2){var r=30;range=8;}
 						else{var r=24;range=12;};
@@ -175,30 +176,25 @@
 					//set course of targets (a function that uses the range to set total distance per turn)
 					var x=Math.floor(Math.random()*range*(Math.pow(-1,Math.floor(Math.random()*2+1))));
 					var y=(range-Math.abs(x))*(Math.pow(-1, Math.floor(Math.random()*2+1)));
-					// if(counter===1){
-					// 	var x=0;
-					// 	var y=4;
-					// }
-					// if(counter===2){
-					// 	var x=4;
-					// 	var y=0;
-					// }
-					// if(counter===3){
-					// 	var x=0;
-					// 	var y=-4;
-					// }
-					// if(counter===4){
-					// 	var x=-4;
-					// 	var y=0;
-					// }
-					var course={
-						x:x,
-						y:y
-					};
-					var id="target_"+counter;
-					targets[id]={cx:cx, cy:cy, r:r, id:id, class:'target', difficulty_level:difficulty_level, color:color, course:course};
-					drawCircle(cx, cy, r, id, color);
-					counter++;
+					// prevent creation of overlapping targets
+					if(counter>1){
+						for(another_target in targets){
+							// check if distance between each target's cx and cy is greater than sum of their radii
+							if(Math.pow((cx-targets[another_target].cx), 2)+Math.pow((cy-targets[another_target].cy), 2)<Math.pow((r+targets[another_target].r), 2)){
+								var should_save=false;
+							}
+						}
+					}
+					if(should_save===true){
+						var course={
+							x:x,
+							y:y
+						};
+						var id="target_"+counter;
+						targets[id]={cx:cx, cy:cy, r:r, id:id, class:'target', difficulty_level:difficulty_level, color:color, course:course};
+						drawCircle(cx, cy, r, id, color);
+						counter++;							
+					}
 				}
 				//clear out setIntervals from previous rounds
 				clearInterval(animate);
@@ -242,17 +238,22 @@
 								console.log('Collision: ' + targets[target].id + ' at ' + targets[target].cx + ', ' + targets[target].cy 
 									+ ' and ' + targets[another_target].id + ' at ' + targets[another_target].cx + ', '+ targets[another_target].cy
 									+ ' are ' + Math.sqrt(Math.pow((targets[target].cx-targets[another_target].cx), 2)+Math.pow((targets[target].cy-targets[another_target].cy), 2)) + ' apart and radii sum is ' + (targets[target].r+targets[another_target].r));
-								console.log(targets[target].id + "'s original tragjectory: " + targets[target].course.x + ", " + targets[target].course.y);
-								console.log(targets[another_target].id + "'s original tragjectory: " + targets[another_target].course.x + ", " + targets[another_target].course.y);
+								console.log(targets[target].id + "'s original trajectory: " + targets[target].course.x + ", " + targets[target].course.y);
+								console.log(targets[another_target].id + "'s original trajectory: " + targets[another_target].course.x + ", " + targets[another_target].course.y);
 								//exchange the courses
-								var temp_x=targets[target].course.x;
-								var temp_y=targets[target].course.y;
-								targets[target].course.x=-targets[another_target].course.y;
-								targets[target].course.y=-targets[another_target].course.x;
-								targets[another_target].course.x=-temp_y;
-								targets[another_target].course.y=-temp_x;
-								console.log(targets[target].id + "'s new tragjectory: " + targets[target].course.x + ", " + targets[target].course.y);
-								console.log(targets[another_target].id + "'s new tragjectory: " + targets[another_target].course.x + ", " + targets[another_target].course.y);
+								var temp_course_x=targets[target].course.x;
+								var temp_course_y=targets[target].course.y;
+								targets[target].course.x=targets[another_target].course.x;
+								targets[target].course.y=targets[another_target].course.y;
+								targets[another_target].course.x=temp_course_x;
+								targets[another_target].course.y=temp_course_y;
+								console.log(targets[target].id + "'s new trajectory: " + targets[target].course.x + ", " + targets[target].course.y);
+								console.log(targets[another_target].id + "'s new trajectory: " + targets[another_target].course.x + ", " + targets[another_target].course.y);
+					//updated location of target's center (cx, cy) sent to d3 for animation over duration speed
+					d3.select("#"+targets[target].id).transition().duration(speed).attr("cx", targets[target].cx).attr("cy", targets[target].cy);
+					//updated location of other target in the collision's center (cx, cy) sent to d3 for animation over duration speed
+					// d3.select("#"+targets[another_target].id).transition().duration(speed).attr("cx", targets[target].cx).attr("cy", targets[target].cy);
+
 
 							}
 						}
