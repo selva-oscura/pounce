@@ -59,12 +59,6 @@
 		<script type="text/javascript">
 			var obj= document.createElement('select');
 			obj.style.width= "80px";
-
-			var browserDimensions={};
-			browserDimensions['x']=window.innerWidth;
-			browserDimensions['y']=window.innerHeight;
-
-			console.log(browserDimensions['x'], browserDimensions['y']);
 		    var targets={};					//target object
 		    var difficulty_level=0;			//variables cor calculating scoring/points
 		    var max_points=0;
@@ -75,6 +69,32 @@
 		    var check_seconds;
 		    var newest_delete_time;
 		    var last_delete_time;
+
+		    //set css for layout of header and playground
+			function setLayout(){
+				browserDimensions={};
+				browserDimensions['x']=window.innerWidth;
+				browserDimensions['y']=window.innerHeight;
+				console.log(browserDimensions['x'], browserDimensions['y']);
+
+				//set header's height
+				if(browserDimensions['x']<807){
+					header_height = 76;
+				}
+				else{
+					header_height = 40;
+				}
+				var header = document.getElementById("header");
+				$(header)
+					.css("height", header_height-2);
+
+				//set svg element playground's height
+				var sandbox=document.getElementById("playground");
+				playground_height = window.innerHeight - header_height;
+				$(sandbox)
+					.css("height", playground_height)
+					.css("width", browserDimensions['x']);
+			}
 
 			//create svg element
 			function makeSVG(tag, attrs) {
@@ -249,12 +269,8 @@
 								targets[another_target].course.y=temp_course_y;
 								console.log(targets[target].id + "'s new trajectory: " + targets[target].course.x + ", " + targets[target].course.y);
 								console.log(targets[another_target].id + "'s new trajectory: " + targets[another_target].course.x + ", " + targets[another_target].course.y);
-					//updated location of target's center (cx, cy) sent to d3 for animation over duration speed
-					d3.select("#"+targets[target].id).transition().duration(speed).attr("cx", targets[target].cx).attr("cy", targets[target].cy);
-					//updated location of other target in the collision's center (cx, cy) sent to d3 for animation over duration speed
-					// d3.select("#"+targets[another_target].id).transition().duration(speed).attr("cx", targets[target].cx).attr("cy", targets[target].cy);
-
-
+								// //updated location of target's center (cx, cy) sent to d3 for animation over duration speed
+								// d3.select("#"+targets[target].id).transition().duration(speed).attr("cx", targets[target].cx).attr("cy", targets[target].cy);
 							}
 						}
 					}
@@ -295,27 +311,9 @@
 				}
 			}
 
-			//set header's height
-			if(browserDimensions['x']<807){
-				header_height = 76;
-			}
-			else{
-				header_height = 40;
-			}
-			var header = document.getElementById("header");
-			$(header)
-				.css("height", header_height-2);
-			playground_height = window.innerHeight - header_height;
-
-
-			//set svg element playground's height
-			var sandbox=document.getElementById("playground");
-			$(sandbox)
-				.css("height", playground_height)
-				.css("width", browserDimensions['x']);
-
 			//set difficulty level
 			$(document).ready(function() {
+				setLayout();
 				$('#easy').click(function(){
 					resetGame();
 					var difficulty_level=1;
@@ -330,6 +328,11 @@
 					resetGame();
 					var difficulty_level=3;
 					generateTargets(difficulty_level);
+				});
+				//reset layout on window resize event
+				$(window).resize(function(){				
+					console.log('resize event');
+					setLayout()
 				});
 			});
 
