@@ -1,0 +1,297 @@
+<html>
+	<head>
+		<title>Pounce</title>
+		<style type="text/css">
+			*{padding:0;margin:0;overflow:hidden;}
+			h1,h2, h3, h4, h5, h6, p{padding:3px; margin:3px;}
+			body {background-color:white;height:100%;}
+			#header{height:60px;}
+			svg { vertical-align: top; }
+			#playground{border:2px solid silver; margin:4px;}
+			.left{float:left;}
+			.right{float:right;}
+			.text_right p{float: right;}
+			#score_space{width:100px;}
+		</style>
+		<script type="text/javascript" src="js/jquery-latest.min.js"></script>
+		<script src="http://d3js.org/d3.v3.min.js" charset="utf-8"></script>
+	</head>
+	<body>
+		<div id='header'>
+			<div id='difficulty_level' class='left'>
+				<form>
+					<p>Difficulty Level: 
+						<label for="easy">
+							<input type="radio" id="easy" name="difficulty_level" value="1"/>
+							Easy
+						</label>
+						<label for="medium">
+							<input type="radio" id="medium" name="difficulty_level" value="2" />
+							Medium
+						</label>
+						<label for="hard">
+							<input type="radio" id="hard" name="difficulty_level" value="3"/>
+							Hard
+						</label>
+					</p>
+				</form>
+			</div><!--end of div difficulty_level-->
+			<div id='score_space' class='right text_right'>
+				<p> Score: <span='score_tally'></span> points</p>
+			</div><!--end of div score_space-->
+		</div><!--end of div header-->
+		<svg id="playground" xmlns="http://www.w3.org/2000/svg"></svg>
+		<script type="text/javascript">
+			var obj= document.createElement('select');
+			obj.style.width= "100px";
+
+			var browserDimensions={};
+			browserDimensions['x']=window.innerWidth-12;
+			browserDimensions['y']=document.body.clientHeight-100;
+			console.log(browserDimensions['x'], browserDimensions['y']);
+		    var counter=1;
+		    var score=0;
+		    var difficulty_level=0;
+		    var targets={};
+
+			//create svg element
+			function makeSVG(tag, attrs) {
+		        var el= document.createElementNS('http://www.w3.org/2000/svg', tag);
+		        for (var k in attrs)
+		        {
+		            el.setAttribute(k, attrs[k]);
+		        }
+		        return el;
+		    }
+
+		    //draws a circle
+			function createCircle(cx, cy, r, id, color, course){
+				var playground=d3.select("#playground");
+				playground.append("svg:circle").
+					attr("cx", cx).
+					attr("cy", cy).
+					attr("r", r).
+					attr("id", id).
+					attr("style", "fill: rgb("+color+"); stroke-width:1; stroke: rgb(225,225,225)");
+				playground.append("svg:text").
+					attr("x", cx).
+					attr("y", cy).
+					attr("id", "text"+id).
+					attr("style", "font-size:20px; color:#000000;").
+					text(id+"course:"+course+"next_course:");
+				//attach event listeners to target
+				$('#'+id).click(function(){
+					console.log('deleting', this.id);
+					deleteTarget(this)
+				});
+			}
+
+			function deleteTarget(this_target){
+				//delete image of circle
+				d3.select("#"+this_target.id).remove();
+				//delete text for circle
+				d3.select("#text"+this_target.id).remove();
+				// delete target from the target object
+				delete targets[this_target];
+			}
+
+
+			//reset the game
+			function resetGame(){
+				for(target in targets){
+					//delete image of circle
+					d3.select("#"+targets[target].id).remove();
+					//delete text for circle
+					d3.select("#text"+targets[target].id).remove();
+					//delete targets info from object
+					delete targets[target];
+				}
+				counter=1;
+			}
+
+			//generate targets
+			function generateTargets(difficulty_level){
+				var counter_ceiling=1;
+				while(counter<=counter_ceiling){				
+					if(difficulty_level==1){var r=30;speed=200;}
+						else if(difficulty_level==2){var r=22;speed=300;}
+						else{var r=15;speed=400;};
+					if(counter%4==0){var color="255,0,0";}
+						else if(counter%4==1){var color="0,255,0";}
+						else if(counter%4==2){var color="0,0,255";}
+						else{var color="255,255,0";}
+					var cx=Math.floor(Math.random()*(browserDimensions['x']-2*r)+r);
+					var cy=Math.floor(Math.random()*(browserDimensions['y']-2*r)+r);
+					var id='target_'+counter;
+					var course=Math.floor(Math.random()*360);
+					targets[id]={cx:cx, cy:cy, r:r, id:id, class:'target', color:color, course:course, speed:speed};
+					createCircle(cx, cy, r, id, color, course);
+					generateDestination(targets[id]);
+					moveTarget(targets[id]);
+					counter++;					
+				}
+			}
+
+			function moveTarget(target){
+				var d=new Date;
+				var start_time=d.getTime();
+				var distance=Math.floor(Math.sqrt(Math.pow(target.next_cx-target.cx, 2)+Math.pow(target.next_cy-target.cy, 2)));
+				d3.select("#text"+target.id).transition().duration(Math.floor(distance*3000/target.speed)).attr("x", target.next_cx).attr("y", target.next_cy).text(target.id+" course:"+target.course+" next_course:"+target.next_course);
+				d3.select("#"+target.id)
+					.transition()
+					.duration(Math.floor(distance*3000/target.speed))
+					.attr("cx", target.next_cx).attr("cy", target.next_cy)
+					.each("end", function(){
+						updateTargets(target);
+						generateDestination(target);
+						// var d=new Date; 
+						// var timestamp=d.getTime();
+						// console.log(target.id, 'distance:',distance, 'targets moving time', Math.floor(distance*3000/target.speed), 'timestamp difference-moving time:', timestamp-start_time-Math.floor(distance*3000/target.speed));
+						moveTarget(target)
+					});
+			}
+
+			function generateDestination(target){
+				//these default next_cx, next_cy values park the destination in the center, not at an edge and are used only if there is an error
+				// next_cx=400;
+				// next_cy=400;
+				if(target.course==0){var course_case=0;}
+				else if(target.course<90){var course_case=1;}
+				else if(target.course==90){var course_case=90;}
+				else if(target.course<180){var course_case=2;}
+				else if(target.course==180){var course_case=180;}
+				else if(target.course<270){var course_case=3;}
+				else if(target.course==270){var course_case=270;}
+				else {var course_case=4;}
+				switch(course_case){
+					case 1:
+						var test_x=Math.floor((target.cy-target.r)*Math.tan(target.course* Math.PI/180));
+						var test_y=Math.floor((browserDimensions['x']-target.r-target.cx)*Math.tan((90-target.course)* Math.PI/180)+1);
+						if(target.cy-test_y<0+target.r){
+							target.next_cx=target.cx+test_x;
+							target.next_cy=0+target.r;
+							target.next_course=(540-target.course)%360;
+						}
+						else if(target.cx+test_x>browserDimensions['x']-target.r){
+							target.next_cx=browserDimensions['x']-target.r;
+							target.next_cy=target.cy-test_y;
+							target.next_course=360-target.course;
+						}
+						else{
+							console.log('houston, we have a problem with', target.id, 'cx=', target.cx, 'cy=', target.cy, 'test_x=', test_x, 'tan for test_x=', Math.tan(target.course* Math.PI/180), 'test_y', test_y, 'tan for test_y', Math.tan((90-target.course)* Math.PI/180));
+							console.log('case 1-1:', target.cx+test_x, 0+target.r, 'case 1-2:', browserDimensions['x']-target.r, target.cy-test_y);
+						}
+						break;
+					case 2:
+						var test_x=Math.floor((browserDimensions['y']-target.cy-target.r)*Math.tan((180-target.course)* Math.PI/180));
+						var test_y=Math.floor((browserDimensions['x']-target.r-target.cx)*Math.tan((target.course-90)* Math.PI/180)+1);
+						if(target.cy+test_y>browserDimensions['y']-target.r){
+							target.next_cx=target.cx+test_x;
+							target.next_cy=browserDimensions['y']-target.r;
+							target.next_course=(540-target.course)%360;
+						}
+						else if(target.cx+test_x>browserDimensions['x']-target.r){
+							target.next_cx=browserDimensions['x']-target.r;
+							target.next_cy=target.cy+test_y;
+							target.next_course=360-target.course;
+							// console.log('2-2');
+						}
+						else{
+							console.log('houston, we have a problem 2 with', target.id, '. test_x=', test_x, 'tan for test_x=', Math.tan((180-target.course)* Math.PI/180), 'test_y', test_y, 'tan for test_y', Math.tan((target.course-90)* Math.PI/180));
+							console.log('case 2-1:', target.cx+test_x, browserDimensions['y']-target.r, 'case 2-2:', browserDimensions['x']-target.r, target.cy+test_y);
+						}
+						break;
+					case 3:
+						var test_x=Math.floor((browserDimensions['y']-target.cy-target.r)*Math.tan((target.course-180)* Math.PI/180)+1);
+						var test_y=Math.floor((target.cx-target.r)*Math.tan((270-target.course)*Math.PI/180)+1);
+						if(target.cy+test_y>browserDimensions['y']-target.r){
+							target.next_cx=target.cx-test_x;
+							target.next_cy=browserDimensions['y']-target.r;
+							target.next_course=(540-target.course)%360;
+
+						}
+						else if(target.cx-test_x<0+target.r){
+							target.next_cx=target.r;
+							target.next_cy=target.cy+test_y;
+							target.next_course=360-target.course;
+						}
+						else{
+							console.log('houston, we have a problem 3 with', target.id, '. test_x=', test_x, 'tan for test_x=', Math.tan((target.course-180)* Math.PI/180), 'test_y=', test_y, 'tan for test_y', Math.tan((270-target.course)*Math.PI/180));
+							console.log('case 3-1:', target.cx-test_x, browserDimensions['y']-target.r, 'case 3-2:', target.r, target.cy+test_y);
+						}
+						break;
+					case 4:
+						var test_x=Math.floor((target.cy-target.r)*Math.tan((360-target.course)* Math.PI/180)+1);
+						var test_y=Math.floor((target.cx-target.r)*Math.tan((target.course-270)* Math.PI/180)+1);
+						if(target.cy-test_y<0+target.r){
+							target.next_cx=target.cx-test_x;
+							target.next_cy=target.r;
+							target.next_course=(540-target.course)%360;
+						}
+						else if(target.cx-test_x<0+target.r){
+							target.next_cx=target.r;
+							target.next_cy=target.cy-test_y;
+							target.next_course=360-target.course;
+						}
+						else{
+							console.log('houston, we have a problem 4 with', target.id, '. test_x=', test_x, 'tan for test_x=', Math.tan((360-target.course)* Math.PI/180), 'test_y', test_y, 'tan for test_y', Math.tan((target.course-270)* Math.PI/180));
+							console.log('case 4-1:', target.cx-test_x, target.r, 'case 4-2:', next_cx=target.r, next_cy=target.cy-test_y);
+						}
+						break;
+					case 0:
+						target.next_cx=target.cx;
+						target.next_cy=target.r;
+						target.next_course=180;
+						break;
+					case 90:
+						target.next_cx=browserDimensions['x']-target.r;;
+						target.next_cy=target.cy;
+						target.next_course=270;
+						break;
+					case 180:
+						target.next_cx=target.cx;
+						target.next_cy=browserDimensions['y']-target.r;
+						target.next_course=0;
+						break;
+					case 270:
+						target.next_cx=target.r;
+						target.next_cy=target.cy;
+						target.next_course=90;
+						break;
+				}
+				// console.log(target.id, 'from', target.cx, target.cy, 'at bearing', target.course, 'results in', target.next_cx, target.next_cy, 'with bearing',target.next_course);
+			}
+
+			function updateTargets(target){
+				target.cx=target.next_cx;
+				target.cy=target.next_cy;
+				target.course=target.next_course;
+			}
+
+
+			//set svg element playground's height
+			var sandbox=document.getElementById("playground");
+			$(sandbox).css("height", browserDimensions['y']).css("width", browserDimensions['x']);
+
+			//set difficulty level
+			$(document).ready(function() {
+				$('#easy').click(function(){
+					var difficulty_level=1;
+					resetGame();
+					generateTargets(difficulty_level);
+				});
+				$('#medium').click(function(){
+					var difficulty_level=2;
+					resetGame();
+					generateTargets(difficulty_level);
+				});
+				$('#hard').click(function(){
+					var difficulty_level=3;
+					resetGame();
+					generateTargets(difficulty_level);
+				});
+			});
+
+		</script>
+	</body>
+</html>
